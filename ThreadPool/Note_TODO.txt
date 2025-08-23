@@ -1,0 +1,1 @@
+Implement a maximum number of concurrent threads and a buffered job queue. Reject incoming connections if both are full.
