@@ -10,28 +10,17 @@ func TestEncodeInteger(t *testing.T) {
 		name     string
 		input    any
 		expected string
-		hasError bool
 	}{
-		{"positive integer", 42, ":42\r\n", false},
-		{"negative integer", -42, ":-42\r\n", false},
-		{"zero", 0, ":0\r\n", false},
-		{"int64 max", int64(9223372036854775807), ":9223372036854775807\r\n", false},
-		{"int64 min", int64(-9223372036854775808), ":-9223372036854775808\r\n", false},
+		{"positive integer", 42, ":42\r\n"},
+		{"negative integer", -42, ":-42\r\n"},
+		{"zero", 0, ":0\r\n"},
+		{"int64 max", int64(9223372036854775807), ":9223372036854775807\r\n"},
+		{"int64 min", int64(-9223372036854775808), ":-9223372036854775808\r\n"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := Encode(tt.input)
-			if tt.hasError {
-				if err == nil {
-					t.Errorf("Expected error but got none")
-				}
-				return
-			}
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
-				return
-			}
+			result := Encode(tt.input)
 			if string(result) != tt.expected {
 				t.Errorf("Expected %q, got %q", tt.expected, string(result))
 			}
@@ -44,27 +33,17 @@ func TestEncodeSimpleString(t *testing.T) {
 		name     string
 		input    any
 		expected string
-		hasError bool
 	}{
-		{"valid string", "hello", "+hello\r\n", false},
-		{"empty string", "", "+\r\n", false},
-		{"string with spaces", "hello world", "+hello world\r\n", false},
-		{"string with CRLF", "hello\r\nworld", "", true},
+		{"valid string", "hello", "+hello\r\n"},
+		{"empty string", "", "+\r\n"},
+		{"string with spaces", "hello world", "+hello world\r\n"},
+		{"string with CRLF", "hello\r\nworld", "$-1\r\n"}, // Should return RespNil on error
+		{"invalid type", 42, "$-1\r\n"},                   // Should return RespNil on error
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := EncodeSimpleString(tt.input)
-			if tt.hasError {
-				if err == nil {
-					t.Errorf("Expected error but got none")
-				}
-				return
-			}
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
-				return
-			}
+			result := EncodeSimpleString(tt.input)
 			if string(result) != tt.expected {
 				t.Errorf("Expected %q, got %q", tt.expected, string(result))
 			}
@@ -77,26 +56,15 @@ func TestEncodeBulkString(t *testing.T) {
 		name     string
 		input    any
 		expected string
-		hasError bool
 	}{
-		{"valid string", "hello", "$5\r\nhello\r\n", false},
-		{"empty string", "", "$0\r\n\r\n", false},
-		{"string with CRLF", "hello\r\nworld", "$12\r\nhello\r\nworld\r\n", false},
+		{"valid string", "hello", "$5\r\nhello\r\n"},
+		{"empty string", "", "$0\r\n\r\n"},
+		{"string with CRLF", "hello\r\nworld", "$12\r\nhello\r\nworld\r\n"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := Encode(tt.input)
-			if tt.hasError {
-				if err == nil {
-					t.Errorf("Expected error but got none")
-				}
-				return
-			}
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
-				return
-			}
+			result := Encode(tt.input)
 			if string(result) != tt.expected {
 				t.Errorf("Expected %q, got %q", tt.expected, string(result))
 			}
@@ -109,25 +77,14 @@ func TestEncodeError(t *testing.T) {
 		name     string
 		input    any
 		expected string
-		hasError bool
 	}{
-		{"valid error", errors.New("test error"), "-test error\r\n", false},
-		{"empty error", errors.New(""), "-\r\n", false},
+		{"valid error", errors.New("test error"), "-test error\r\n"},
+		{"empty error", errors.New(""), "-\r\n"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := Encode(tt.input)
-			if tt.hasError {
-				if err == nil {
-					t.Errorf("Expected error but got none")
-				}
-				return
-			}
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
-				return
-			}
+			result := Encode(tt.input)
 			if string(result) != tt.expected {
 				t.Errorf("Expected %q, got %q", tt.expected, string(result))
 			}
@@ -140,27 +97,16 @@ func TestEncodeArray(t *testing.T) {
 		name     string
 		input    any
 		expected string
-		hasError bool
 	}{
-		{"empty array", []any{}, "*0\r\n", false},
-		{"array with strings", []any{"hello", "world"}, "*2\r\n$5\r\nhello\r\n$5\r\nworld\r\n", false},
-		{"array with mixed types", []any{"hello", 42, errors.New("error")}, "*3\r\n$5\r\nhello\r\n:42\r\n-error\r\n", false},
-		{"nested array", []any{[]any{"nested"}}, "*1\r\n*1\r\n$6\r\nnested\r\n", false},
+		{"empty array", []any{}, "*0\r\n"},
+		{"array with strings", []any{"hello", "world"}, "*2\r\n$5\r\nhello\r\n$5\r\nworld\r\n"},
+		{"array with mixed types", []any{"hello", 42, errors.New("error")}, "*3\r\n$5\r\nhello\r\n:42\r\n-error\r\n"},
+		{"nested array", []any{[]any{"nested"}}, "*1\r\n*1\r\n$6\r\nnested\r\n"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := Encode(tt.input)
-			if tt.hasError {
-				if err == nil {
-					t.Errorf("Expected error but got none")
-				}
-				return
-			}
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
-				return
-			}
+			result := Encode(tt.input)
 			if string(result) != tt.expected {
 				t.Errorf("Expected %q, got %q", tt.expected, string(result))
 			}
@@ -182,11 +128,7 @@ func TestAutoDetectType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := Encode(tt.input)
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
-				return
-			}
+			result := Encode(tt.input)
 			if string(result) != tt.expected {
 				t.Errorf("Expected %q, got %q", tt.expected, string(result))
 			}
@@ -341,6 +283,7 @@ func TestDecodeArray(t *testing.T) {
 		{"nil array", "*-1\r\n", nil, false},
 		{"invalid length", "*abc\r\n", nil, true},
 		{"insufficient elements", "*2\r\n$5\r\nhello\r\n", nil, true},
+		{"array one string", "*2\r\n$5\r\nhello\r\n$1\r\nh\r\n", []any{"hello", "h"}, false},
 	}
 
 	for _, tt := range tests {
@@ -395,11 +338,7 @@ func TestRoundTrip(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Encode
-			encoded, err := Encode(tt.input)
-			if err != nil {
-				t.Errorf("Encoding failed: %v", err)
-				return
-			}
+			encoded := Encode(tt.input)
 
 			// Decode
 			decoded, err := Decode(encoded)
@@ -426,6 +365,26 @@ func TestRoundTrip(t *testing.T) {
 				if decoded != tt.input {
 					t.Errorf("Round trip failed: expected %v, got %v", tt.input, decoded)
 				}
+			}
+		})
+	}
+}
+
+func TestEncodeErrorHandling(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    any
+		expected string
+	}{
+		{"unsupported type", map[string]string{"key": "value"}, "$-1\r\n"}, // Should return RespNil
+		{"nil input", nil, "$-1\r\n"},                                      // Should return RespNil
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := Encode(tt.input)
+			if string(result) != tt.expected {
+				t.Errorf("Expected %q, got %q", tt.expected, string(result))
 			}
 		})
 	}

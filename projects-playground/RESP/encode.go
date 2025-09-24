@@ -66,7 +66,7 @@ func encodeError(err error) ([]byte, error) {
 func encodeArray(arr []any) ([]byte, error) {
 	var buf bytes.Buffer
 	for _, item := range arr {
-		encoded, err := Encode(item)
+		encoded, err := encode(item)
 		if err != nil {
 			return nil, fmt.Errorf("failed to encode array element: %w", err)
 		}
@@ -80,14 +80,7 @@ func encodeArray(arr []any) ([]byte, error) {
 		buf.String())), nil
 }
 
-// Encode encodes data to RESP format
-//
-// Accepts these types:
-// - int, int8, int16, int32, int64, uint8, uint16, uint32, uint64: encoded as integer
-// - string: encoded as bulk string (e.g., "hello" -> $5\r\nhello\r\n)
-// - error: encoded as error (e.g., errors.New("msg") -> -msg\r\n)
-// - []any: encoded as array (e.g., []any{"hello", 42} -> *2\r\n$5\r\nhello\r\n:42\r\n)
-func Encode(data any) ([]byte, error) {
+func encode(data any) ([]byte, error) {
 	switch v := data.(type) {
 	case int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
 		return encodeInteger(convertToInt64(v))
@@ -98,17 +91,37 @@ func Encode(data any) ([]byte, error) {
 	case []any:
 		return encodeArray(v)
 	default:
-		log.Printf("RESP encode: unsupported type %T", data)
 		return nil, fmt.Errorf("unsupported type %T", data)
 	}
 }
 
+// Encode encodes data to RESP format
+//
+// Accepts these types:
+// - int, int8, int16, int32, int64, uint8, uint16, uint32, uint64: encoded as integer
+// - string: encoded as bulk string (e.g., "hello" -> $5\r\nhello\r\n)
+// - error: encoded as error (e.g., errors.New("msg") -> -msg\r\n)
+// - []any: encoded as array (e.g., []any{"hello", 42} -> *2\r\n$5\r\nhello\r\n:42\r\n)
+func Encode(data any) []byte {
+	result, err := encode(data)
+	if err != nil {
+		log.Printf("error encoding data: %v", err)
+		return RespNil
+	}
+	return result
+}
+
 // EncodeSimpleString encodes a string as a simple string (not bulk string)
-func EncodeSimpleString(data any) ([]byte, error) {
+func EncodeSimpleString(data any) []byte {
 	str, ok := data.(string)
 	if !ok {
 		log.Printf("RESP encode: expected string, got %T", data)
-		return nil, fmt.Errorf("expected string, got %T", data)
+		return RespNil
 	}
-	return encodeSimpleString(str)
+	result, err := encodeSimpleString(str)
+	if err != nil {
+		log.Printf("error encoding data: %v", err)
+		return RespNil
+	}
+	return result
 }

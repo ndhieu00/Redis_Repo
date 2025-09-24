@@ -11,7 +11,7 @@ const (
 var CRLFBytes = []byte{CarriageReturnByte, LineFeedByte}
 
 // Pre-encoded RESP nil value
-var NilBulkString = []byte("$-1\r\n")
+var RespNil = []byte("$-1\r\n")
 
 // RESP data types
 type DataType struct {

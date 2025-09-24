@@ -19,8 +19,8 @@ func (e *DecodingError) Error() string {
 
 // DecodeResult represents the result of decoding a RESP value
 type DecodeResult struct {
-	Value    any
-	Position int
+	Value  any
+	Length int // Total length of data consumed
 }
 
 // readInteger decodes an integer from RESP format
@@ -43,14 +43,14 @@ func readInteger(data []byte) (*DecodeResult, error) {
 		}
 	}
 
-	number, nextPos, err := extractNumber(data[pos:])
+	number, length, err := extractNumber(data[pos:])
 	if err != nil {
 		return nil, &DecodingError{Position: pos, Data: data, Err: err}
 	}
 
 	return &DecodeResult{
-		Value:    number * sign,
-		Position: pos + nextPos,
+		Value:  number * sign,
+		Length: pos + length,
 	}, nil
 }
 
@@ -71,8 +71,8 @@ func readError(data []byte) (*DecodeResult, error) {
 	}
 
 	return &DecodeResult{
-		Value:    string(data[1:pos]),
-		Position: pos + 2,
+		Value:  string(data[1:pos]),
+		Length: pos + 2,
 	}, nil
 }
 
@@ -93,8 +93,8 @@ func readSimpleString(data []byte) (*DecodeResult, error) {
 	}
 
 	return &DecodeResult{
-		Value:    string(data[1:pos]),
-		Position: pos + 2,
+		Value:  string(data[1:pos]),
+		Length: pos + 2,
 	}, nil
 }
 
@@ -106,17 +106,17 @@ func readBulkString(data []byte) (*DecodeResult, error) {
 	}
 
 	pos := 1
-	length, nextPos, err := extractNumber(data[pos:])
+	length, lengthConsumed, err := extractNumber(data[pos:])
 	if err != nil {
 		return nil, &DecodingError{Position: pos, Data: data, Err: err}
 	}
-	pos += nextPos
+	pos += lengthConsumed
 
 	// Handle nil bulk string
 	if length == -1 {
 		return &DecodeResult{
-			Value:    nil,
-			Position: pos,
+			Value:  nil,
+			Length: pos,
 		}, nil
 	}
 
@@ -131,8 +131,8 @@ func readBulkString(data []byte) (*DecodeResult, error) {
 	}
 
 	return &DecodeResult{
-		Value:    string(data[pos : pos+int(length)]),
-		Position: pos + int(length) + 2,
+		Value:  string(data[pos : pos+int(length)]),
+		Length: pos + int(length) + 2,
 	}, nil
 }
 
@@ -144,17 +144,17 @@ func readArray(data []byte) (*DecodeResult, error) {
 	}
 
 	pos := 1
-	length, nextPos, err := extractNumber(data[pos:])
+	length, lengthConsumed, err := extractNumber(data[pos:])
 	if err != nil {
 		return nil, &DecodingError{Position: pos, Data: data, Err: err}
 	}
-	pos += nextPos
+	pos += lengthConsumed
 
 	// Handle nil array
 	if length == -1 {
 		return &DecodeResult{
-			Value:    nil,
-			Position: pos,
+			Value:  nil,
+			Length: pos,
 		}, nil
 	}
 
@@ -162,20 +162,20 @@ func readArray(data []byte) (*DecodeResult, error) {
 	for i := range arrResult {
 		result, err := decode(data[pos:])
 		if err != nil {
-			return nil, &DecodingError{Position: pos, Data: data, Err: fmt.Errorf("failed to decode array element %d: %w", i, err)}
+			return nil, &DecodingError{Position: pos, Data: data, Err: fmt.Errorf("failed to decode array element %d: %w, current result arrResult: %s", i, err, arrResult)}
 		}
 		arrResult[i] = result.Value
-		pos = result.Position
+		pos += result.Length
 	}
 
 	return &DecodeResult{
-		Value:    arrResult,
-		Position: pos,
+		Value:  arrResult,
+		Length: pos,
 	}, nil
 }
 
-// extractNumber extracts a number from RESP format
-// Example: 5\r\n => 5, -1\r\n => -1
+// extractNumber extracts a number from RESP format and total length consumed
+// Example: 5\r\n => (5, 3), -1\r\n => (-1, 4)
 func extractNumber(data []byte) (int64, int, error) {
 	if len(data) == 0 {
 		return 0, 0, errors.New("empty data")
