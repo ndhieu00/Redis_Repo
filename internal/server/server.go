@@ -1,22 +1,18 @@
-package main
+package server
 
 import (
-	"example/io_multiplexing_server/io_multiplexing"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"os"
+	"redis-repo/internal/config"
+	"redis-repo/internal/core/io_multiplexing"
+	"redis-repo/internal/handler/client"
 	"syscall"
 )
 
-const (
-	SERVER_ADDRESS = "0.0.0.0:3000"
-	BUFFER_SIZE    = 512
-)
-
-func main() {
-	log.Println("Starting an I/O Multiplexing TCP server on", SERVER_ADDRESS)
+func RunRedisServer() {
+	log.Println("Starting an I/O Multiplexing TCP server on", config.Port)
 
 	listener, listenerFile, serverFd, err := setupServer()
 	if err != nil {
@@ -37,7 +33,7 @@ func main() {
 // setupServer creates and configures the TCP listener, returning the listener,
 // file descriptor, and server file descriptor for epoll monitoring
 func setupServer() (net.Listener, *os.File, int, error) {
-	listener, err := net.Listen("tcp", SERVER_ADDRESS)
+	listener, err := net.Listen(config.Protocol, config.Port)
 	if err != nil {
 		return nil, nil, 0, fmt.Errorf("failed to start listener: %w", err)
 	}
@@ -92,80 +88,10 @@ func runEventLoop(ioMultiplexer *io_multiplexing.Epoll, serverFd int) {
 
 		for _, event := range events {
 			if event.Fd == int32(serverFd) {
-				handleNewConnection(serverFd, ioMultiplexer)
+				client.HandleNewConnection(serverFd, ioMultiplexer)
 			} else {
-				handleClientData(int(event.Fd))
+				client.HandleClientData(int(event.Fd))
 			}
 		}
-	}
-}
-
-// handleNewConnection accepts a new client connection and adds it to the IO multiplexer monitoring
-func handleNewConnection(serverFd int, ioMultiplexer *io_multiplexing.Epoll) {
-	connFd, sa, err := syscall.Accept(serverFd)
-	formattedAddress := formatSockaddr(sa)
-	if err != nil {
-		log.Println("Accept connection failed:", err)
-		return
-	}
-
-	log.Println("New connection from:", formattedAddress)
-	if err = ioMultiplexer.Monitor(syscall.EpollEvent{
-		Fd:     int32(connFd),
-		Events: syscall.EPOLLIN,
-	}); err != nil {
-		log.Println("Monitor connection", formattedAddress, "failed:", err)
-		syscall.Close(connFd)
-	}
-}
-
-// handleClientData reads commands from a client connection and sends responses
-func handleClientData(clientFd int) {
-	cmd, err := readCommand(clientFd)
-	if err != nil {
-		if err == io.EOF || err == syscall.ECONNRESET {
-			syscall.Close(clientFd)
-			return
-		}
-		log.Println("Read Error:", err)
-		return
-	}
-
-	if err = respond(cmd, clientFd); err != nil {
-		log.Println("Write Error:", err)
-	}
-}
-
-func readCommand(fd int) (string, error) {
-	buf := make([]byte, BUFFER_SIZE)
-	n, err := syscall.Read(fd, buf)
-	if err != nil {
-		return "", err
-	}
-	if n == 0 {
-		return "", io.EOF
-	}
-
-	return string(buf[:n]), nil
-}
-
-func respond(data string, fd int) error {
-	_, err := syscall.Write(fd, []byte(data))
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func formatSockaddr(sa syscall.Sockaddr) string {
-	switch a := sa.(type) {
-	case *syscall.SockaddrInet4:
-		ip := net.IPv4(a.Addr[0], a.Addr[1], a.Addr[2], a.Addr[3])
-		return fmt.Sprintf("%s:%d", ip, a.Port)
-	case *syscall.SockaddrInet6:
-		ip := net.IP(a.Addr[:])
-		return fmt.Sprintf("[%s]:%d", ip, a.Port)
-	default:
-		return fmt.Sprintf("%v", sa)
 	}
 }

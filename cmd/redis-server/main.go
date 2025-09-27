@@ -1,7 +1,7 @@
 package main
 
-import "fmt"
+import "redis-repo/internal/server"
 
 func main() {
-	fmt.Println("hello world")
+	server.RunRedisServer()
 }
