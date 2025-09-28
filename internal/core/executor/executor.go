@@ -9,7 +9,7 @@ func ExecuteAndRespond(cmd *command.Command, clientFd int) error {
 	var res []byte
 	switch cmd.Cmd {
 	case "PING":
-		res = executePing()
+		res = executePing(cmd.Args)
 	default:
 		res = []byte("-CMD NOT FOUND\r\n")
 	}
