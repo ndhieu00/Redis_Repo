@@ -17,6 +17,9 @@ func ExecuteAndRespond(cmd *command.Command, clientFd int) error {
 		res = executeSet(cmd.Args)
 	case "TTL":
 		res = executeTTL(cmd.Args)
+	case "DEL":
+		res = executeDel(cmd.Args)
+
 	default:
 		res = []byte("-CMD NOT FOUND\r\n")
 	}

@@ -11,6 +11,7 @@ import (
 	"syscall"
 )
 
+// Main
 func RunRedisServer() {
 	log.Println("Starting an I/O Multiplexing TCP server on", config.Port)
 
