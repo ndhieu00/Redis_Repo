@@ -14,7 +14,11 @@ import (
 // Support SET key value [EX seconds|PX milliseconds|EXAT timestamp|PXAT milliseconds-timestamp]
 func executeSet(args []string) []byte {
 	if len(args) != 2 && len(args) != 4 {
-		return resp.Encode(errors.New("ERR wrong number of arguments for 'SET'"))
+		return resp.Encode(fmt.Sprintf(constant.ErrWrongArgCount, "SET"))
+	}
+
+	if args[0] == "" {
+		return resp.Encode(constant.ErrEmptyKey)
 	}
 
 	var expiryTimeMs uint64
@@ -38,13 +42,13 @@ func executeSet(args []string) []byte {
 
 		if err != nil {
 			log.Println(err)
-			return resp.Encode(errors.New("invalid time"))
+			return resp.Encode(constant.ErrInvalidTime)
 		}
 	}
 
 	dictStore.Set(args[0], args[1], expiryTimeMs)
 
-	return constant.RespOk
+	return []byte(constant.RespOk)
 }
 
 func expiryTimeMsFromEX(timeStr string) (uint64, error) {
