@@ -6,7 +6,8 @@ echo "======================================"
 
 echo ""
 echo "📊 Running Unit Tests..."
-go test ./internal/core/executor/ -v
+echo "Unit Test for command executor"
+go test ./internal/core/executor/
 
 echo ""
 echo "✅ Unit tests completed!"

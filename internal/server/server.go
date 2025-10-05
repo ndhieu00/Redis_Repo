@@ -6,9 +6,12 @@ import (
 	"net"
 	"os"
 	"redis-repo/internal/config"
+	"redis-repo/internal/constant"
 	"redis-repo/internal/core/io_multiplexing"
 	"redis-repo/internal/handler/client"
+	"redis-repo/internal/handler/server"
 	"syscall"
+	"time"
 )
 
 // Main
@@ -76,6 +79,7 @@ func setupIOMultiplexer(serverFd int) (*io_multiplexing.Epoll, error) {
 
 // runEventLoop continuously waits for and processes IO events from the multiplexer
 func runEventLoop(ioMultiplexer *io_multiplexing.Epoll, serverFd int) {
+	cleanupLastTime := time.Now().UnixMilli()
 	for {
 		events, err := ioMultiplexer.Wait()
 		if err != nil {
@@ -85,6 +89,13 @@ func runEventLoop(ioMultiplexer *io_multiplexing.Epoll, serverFd int) {
 				log.Println("Wait failed:", err)
 			}
 			continue
+		}
+
+		// Actively clean up expired keys if the previous cleanup occurred more than X milliseconds ago.
+		now := time.Now().UnixMilli()
+		if now-cleanupLastTime >= constant.ActiveCleanupFrequency {
+			server.HandleSystemCleanup()
+			cleanupLastTime = now
 		}
 
 		for _, event := range events {

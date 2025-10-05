@@ -14,7 +14,15 @@ const (
 
 // Error Messages
 const (
-	ErrWrongArgCount = "ERR wrong number of arguments for '%s' command"
-	ErrEmptyKey      = "ERR empty key"
-	ErrInvalidTime   = "ERR invalid time"
+	ErrWrongArgCount = "-ERR wrong number of arguments for '%s' command\r\n"
+	ErrEmptyKey      = "-ERR empty key\r\n"
+	ErrInvalidTime   = "-ERR invalid time\r\n"
+)
+
+// Active Cleanup
+const (
+	ActiveCleanupFrequency                 = 100 // 100ms
+	ActiveCleanupTimeLimit                 = 500 // 500ms
+	ActiveCleanupSampleSize                = 20
+	ActiveCleanupAcceptedExpiredProportion = 0.1 // The percentage of expired keys in the sample size is acceptable.
 )

@@ -21,12 +21,9 @@ func NewDict() *Dict {
 }
 
 /*
-****************
+ * Dictionary implementation
+ */
 
-	Dictionary Store
-
-*****************
-*/
 func (d *Dict) Get(key string) *ValueObject {
 	v := d.dictStore[key]
 	if v != nil && d.HasExpired(key) {
@@ -59,9 +56,13 @@ func (d *Dict) SetDictStore(key string, value any) {
 	d.dictStore[key] = &ValueObject{value}
 }
 
-/**********
-	Expired Dictionary Store
-**********/
+/*
+ * Expired Dictionary store implementation
+ */
+
+func (d *Dict) GetExpiredDictStore() map[string]uint64 {
+	return d.expiredDictStore
+}
 
 func (d *Dict) GetExpiryTime(key string) (uint64, bool) {
 	expiryTime, exist := d.expiredDictStore[key]

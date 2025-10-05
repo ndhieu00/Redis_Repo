@@ -9,19 +9,19 @@ import (
 
 func executeTTL(args []string) []byte {
 	if len(args) != 1 {
-		return resp.Encode(fmt.Sprintf(constant.ErrWrongArgCount, "TTL"))
+		return []byte(fmt.Sprintf(constant.ErrWrongArgCount, "TTL"))
 	}
 	key := args[0]
 	if key == "" {
-		return resp.Encode(constant.ErrEmptyKey)
+		return []byte(constant.ErrEmptyKey)
 	}
 
-	vObj := dictStore.Get(key)
+	vObj := dict.Get(key)
 	if vObj == nil {
 		return []byte(constant.TtlKeyNotExist)
 	}
 
-	expiryTime, exist := dictStore.GetExpiryTime(key)
+	expiryTime, exist := dict.GetExpiryTime(key)
 	now := uint64(time.Now().UnixMilli())
 
 	if !exist {
@@ -29,7 +29,7 @@ func executeTTL(args []string) []byte {
 	}
 
 	if expiryTime < now {
-		dictStore.Delete(key)
+		dict.Delete(key)
 		return []byte(constant.TtlKeyNotExist)
 	}
 

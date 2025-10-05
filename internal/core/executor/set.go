@@ -14,11 +14,11 @@ import (
 // Support SET key value [EX seconds|PX milliseconds|EXAT timestamp|PXAT milliseconds-timestamp]
 func executeSet(args []string) []byte {
 	if len(args) != 2 && len(args) != 4 {
-		return resp.Encode(fmt.Sprintf(constant.ErrWrongArgCount, "SET"))
+		return []byte(fmt.Sprintf(constant.ErrWrongArgCount, "SET"))
 	}
 
 	if args[0] == "" {
-		return resp.Encode(constant.ErrEmptyKey)
+		return []byte(constant.ErrEmptyKey)
 	}
 
 	var expiryTimeMs uint64
@@ -37,16 +37,16 @@ func executeSet(args []string) []byte {
 		case "PXAT": // TimeStr in milliseconds-timestamp
 			expiryTimeMs, err = expiryTimeMsFromPXAT(timeStr)
 		default:
-			return resp.Encode(errors.New("invalid type of expiry time"))
+			return resp.Encode(errors.New("ERR invalid type of expiry time"))
 		}
 
 		if err != nil {
 			log.Println(err)
-			return resp.Encode(constant.ErrInvalidTime)
+			return []byte(constant.ErrInvalidTime)
 		}
 	}
 
-	dictStore.Set(args[0], args[1], expiryTimeMs)
+	dict.Set(args[0], args[1], expiryTimeMs)
 
 	return []byte(constant.RespOk)
 }

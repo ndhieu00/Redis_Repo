@@ -8,14 +8,14 @@ import (
 
 func executeGet(args []string) []byte {
 	if len(args) != 1 {
-		return resp.Encode(fmt.Sprintf(constant.ErrWrongArgCount, "GET"))
+		return []byte(fmt.Sprintf(constant.ErrWrongArgCount, "GET"))
 	}
 	key := args[0]
 	if key == "" {
-		return resp.Encode(constant.ErrEmptyKey)
+		return []byte(constant.ErrEmptyKey)
 	}
 
-	vObject := dictStore.Get(key)
+	vObject := dict.Get(key)
 	if vObject == nil {
 		return []byte(constant.RespNil)
 	}

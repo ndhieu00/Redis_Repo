@@ -11,6 +11,8 @@ High-level system design of the Redis server.
 │ • Accept    │     │ • Parse     │     │ • Execute   │
 │ • Monitor   │     │ • Validate  │     │ • Respond   │
 │ • Route     │     │ • Route     │     │ • Write     │
+│ • System    │     │ • Client    │     │ • Cleanup   │
+│   Events    │     │ • System    │     │             │
 └─────────────┘     └─────────────┘     └─────────────┘
 ```
 
@@ -20,16 +22,16 @@ High-level system design of the Redis server.
 - **Network I/O**: TCP socket management and connection handling
 - **Event Loop**: epoll-based I/O multiplexing for efficient event handling
 - **Connection Management**: Accept new connections and monitor existing ones
+- **System Events**: Triggers system-level operations (cleanup)
 
 ### Handler Layer
-- **Command Parsing**: RESP (REdis Serialization Protocol) decoding
-- **Client Management**: Per-client connection state and lifecycle
+- **Client Handler**: Command parsing, client connection management, RESP protocol
+- **Server Handler**: System-level operations (cleanup)
 
 ### Executor Layer
 - **Command Execution**: Business logic for each Redis command
 - **Response Generation**: RESP protocol encoding
-- **TTL Management**: Automatic expiry handling
-
+- **System Operations**: Expired key cleanup
 ## Core Components
 
 ### I/O Multiplexing
@@ -51,7 +53,9 @@ internal/
 │   ├── resp/            # RESP protocol encoding/decoding
 │   └── io_multiplexing/ # epoll-based I/O multiplexing
 ├── data_structure/      # Custom data structures
-├── handler/             # Client connection handling
+├── handler/
+│   ├── client/          # Client connection handling
+│   └── server/          # System-level operations
 ├── server/              # Main server implementation
 ├── config/              # Configuration management
 └── constant/            # Application constants

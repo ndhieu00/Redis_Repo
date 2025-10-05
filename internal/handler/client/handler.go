@@ -77,7 +77,6 @@ func HandleClientData(clientFd int) bool {
 	cmd, err := readCommand(clientFd)
 	if err != nil {
 		if err == io.EOF || err == syscall.ECONNRESET {
-			log.Println("Client disconnected:", clientFd)
 			return true
 		}
 		log.Println("Read Error:", err)

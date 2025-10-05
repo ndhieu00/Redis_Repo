@@ -1,7 +1,8 @@
 package executor
 
 import (
-	"errors"
+	"fmt"
+	"redis-repo/internal/constant"
 	"redis-repo/internal/core/resp"
 )
 
@@ -13,6 +14,6 @@ func executePing(args []string) []byte {
 	case 1:
 		return resp.Encode(args[0])
 	default:
-		return resp.Encode(errors.New("wrong number of arguments for 'ping' command"))
+		return []byte(fmt.Sprintf(constant.ErrWrongArgCount, "PING"))
 	}
 }

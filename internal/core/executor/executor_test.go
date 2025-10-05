@@ -9,7 +9,7 @@ import (
 )
 
 func resetGlobalDict() {
-	dictStore = data_structure.NewDict()
+	dict = data_structure.NewDict()
 }
 
 func assertResponse(t *testing.T, got []byte, expected string) {
@@ -39,7 +39,7 @@ func TestExecutePing(t *testing.T) {
 		{
 			name:     "PING with multiple arguments (should error)",
 			args:     []string{"Hello", "World"},
-			expected: "-wrong number of arguments for 'ping' command\r\n",
+			expected: "-ERR wrong number of arguments for 'PING' command\r\n",
 		},
 	}
 
@@ -64,7 +64,7 @@ func TestExecuteGet(t *testing.T) {
 		{
 			name: "GET existing key",
 			setup: func() {
-				dictStore.Set("testkey", "testvalue", 0)
+				dict.Set("testkey", "testvalue", 0)
 			},
 			args:     []string{"testkey"},
 			expected: "$9\r\ntestvalue\r\n",
@@ -83,7 +83,7 @@ func TestExecuteGet(t *testing.T) {
 				// No setup needed
 			},
 			args:     []string{},
-			expected: "$47\r\nERR wrong number of arguments for 'GET' command\r\n",
+			expected: "-ERR wrong number of arguments for 'GET' command\r\n",
 		},
 		{
 			name: "GET with empty key",
@@ -91,13 +91,13 @@ func TestExecuteGet(t *testing.T) {
 				// No setup needed
 			},
 			args:     []string{""},
-			expected: "$13\r\nERR empty key\r\n",
+			expected: "-ERR empty key\r\n",
 		},
 		{
 			name: "GET expired key",
 			setup: func() {
 				// Set key with immediate expiry
-				dictStore.Set("expired", "value", uint64(time.Now().UnixMilli()-1000))
+				dict.Set("expired", "value", uint64(time.Now().UnixMilli()-1000))
 			},
 			args:     []string{"expired"},
 			expected: constant.RespNil,
@@ -151,32 +151,32 @@ func TestExecuteSet(t *testing.T) {
 		{
 			name:     "SET with wrong number of arguments",
 			args:     []string{"key"},
-			expected: "$47\r\nERR wrong number of arguments for 'SET' command\r\n",
+			expected: "-ERR wrong number of arguments for 'SET' command\r\n",
 		},
 		{
 			name:     "SET with empty key",
 			args:     []string{"", "value"},
-			expected: "$13\r\nERR empty key\r\n",
+			expected: "-ERR empty key\r\n",
 		},
 		{
 			name:     "SET with invalid EX value",
 			args:     []string{"key", "value", "EX", "invalid"},
-			expected: "$16\r\nERR invalid time\r\n",
+			expected: "-ERR invalid time\r\n",
 		},
 		{
 			name:     "SET with negative EX value",
 			args:     []string{"key", "value", "EX", "-1"},
-			expected: "$16\r\nERR invalid time\r\n",
+			expected: "-ERR invalid time\r\n",
 		},
 		{
 			name:     "SET with invalid expiry type",
 			args:     []string{"key", "value", "INVALID", "60"},
-			expected: "-invalid type of expiry time\r\n",
+			expected: "-ERR invalid type of expiry time\r\n",
 		},
 		{
 			name:     "SET with EXAT in the past",
 			args:     []string{"key", "value", "EXAT", "1"},
-			expected: "$16\r\nERR invalid time\r\n",
+			expected: "-ERR invalid time\r\n",
 		},
 	}
 
@@ -210,7 +210,7 @@ func TestExecuteTTL(t *testing.T) {
 		{
 			name: "TTL for key without expiry",
 			setup: func() {
-				dictStore.Set("key", "value", 0)
+				dict.Set("key", "value", 0)
 			},
 			args:     []string{"key"},
 			expected: constant.TtlKeyExistNoExpire,
@@ -219,7 +219,7 @@ func TestExecuteTTL(t *testing.T) {
 			name: "TTL for key with future expiry",
 			setup: func() {
 				futureTime := uint64(time.Now().UnixMilli() + 60000) // 60 seconds from now
-				dictStore.Set("key", "value", futureTime)
+				dict.Set("key", "value", futureTime)
 			},
 			args:     []string{"key"},
 			expected: ":", // Should return a positive integer (seconds)
@@ -228,7 +228,7 @@ func TestExecuteTTL(t *testing.T) {
 			name: "TTL for expired key",
 			setup: func() {
 				pastTime := uint64(time.Now().UnixMilli() - 1000) // 1 second ago
-				dictStore.Set("expired", "value", pastTime)
+				dict.Set("expired", "value", pastTime)
 			},
 			args:     []string{"expired"},
 			expected: constant.TtlKeyNotExist,
@@ -239,7 +239,7 @@ func TestExecuteTTL(t *testing.T) {
 				// No setup needed
 			},
 			args:     []string{},
-			expected: "$47\r\nERR wrong number of arguments for 'TTL' command\r\n",
+			expected: "-ERR wrong number of arguments for 'TTL' command\r\n",
 		},
 		{
 			name: "TTL with empty key",
@@ -247,7 +247,7 @@ func TestExecuteTTL(t *testing.T) {
 				// No setup needed
 			},
 			args:     []string{""},
-			expected: "$13\r\nERR empty key\r\n",
+			expected: "-ERR empty key\r\n",
 		},
 	}
 
@@ -283,7 +283,7 @@ func TestExecuteDel(t *testing.T) {
 		{
 			name: "DEL existing key",
 			setup: func() {
-				dictStore.Set("key1", "value1", 0)
+				dict.Set("key1", "value1", 0)
 			},
 			args:     []string{"key1"},
 			expected: ":1\r\n",
@@ -299,8 +299,8 @@ func TestExecuteDel(t *testing.T) {
 		{
 			name: "DEL multiple keys - some exist",
 			setup: func() {
-				dictStore.Set("key1", "value1", 0)
-				dictStore.Set("key2", "value2", 0)
+				dict.Set("key1", "value1", 0)
+				dict.Set("key2", "value2", 0)
 			},
 			args:     []string{"key1", "key2", "nonexistent"},
 			expected: ":2\r\n",
@@ -369,7 +369,7 @@ func TestCommandIntegration(t *testing.T) {
 	t.Run("Expired key cleanup", func(t *testing.T) {
 		// Set a key with immediate expiry
 		immediateExpiry := uint64(time.Now().UnixMilli() - 1000)
-		dictStore.Set("expired", "value", immediateExpiry)
+		dict.Set("expired", "value", immediateExpiry)
 
 		// GET should return nil (key should be cleaned up)
 		getResult := executeGet([]string{"expired"})
