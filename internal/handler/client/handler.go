@@ -72,20 +72,23 @@ func HandleNewConnection(serverFd int, ioMultiplexer *io_multiplexing.Epoll) {
 }
 
 // HandleClientData reads commands from a client connection and sends responses
-func HandleClientData(clientFd int) {
+// Returns true if connection should be closed, false otherwise
+func HandleClientData(clientFd int) bool {
 	cmd, err := readCommand(clientFd)
 	if err != nil {
 		if err == io.EOF || err == syscall.ECONNRESET {
-			syscall.Close(clientFd)
-			return
+			log.Println("Client disconnected:", clientFd)
+			return true
 		}
 		log.Println("Read Error:", err)
-		return
+		return false
 	}
 
 	if err = executor.ExecuteAndRespond(cmd, clientFd); err != nil {
 		log.Println("Execute and respond failed:", err)
 	}
+
+	return false
 }
 
 func formatSockaddr(sa syscall.Sockaddr) string {

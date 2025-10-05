@@ -91,7 +91,13 @@ func runEventLoop(ioMultiplexer *io_multiplexing.Epoll, serverFd int) {
 			if event.Fd == int32(serverFd) {
 				client.HandleNewConnection(serverFd, ioMultiplexer)
 			} else {
-				client.HandleClientData(int(event.Fd))
+				clientFd := int(event.Fd)
+				shouldClose := client.HandleClientData(clientFd)
+				if shouldClose {
+					// Server manages I/O multiplexer cleanup
+					ioMultiplexer.Remove(clientFd)
+					syscall.Close(clientFd)
+				}
 			}
 		}
 	}

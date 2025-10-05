@@ -28,6 +28,10 @@ func (ep *Epoll) Monitor(epEvent syscall.EpollEvent) error {
 	return syscall.EpollCtl(ep.fd, syscall.EPOLL_CTL_ADD, int(epEvent.Fd), &epEvent)
 }
 
+func (ep *Epoll) Remove(fd int) error {
+	return syscall.EpollCtl(ep.fd, syscall.EPOLL_CTL_DEL, fd, nil)
+}
+
 func (ep *Epoll) Wait() ([]syscall.EpollEvent, error) {
 	n, err := syscall.EpollWait(ep.fd, ep.epollEvents, -1)
 	if err != nil {
