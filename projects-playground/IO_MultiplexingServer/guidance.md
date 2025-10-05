@@ -4,12 +4,6 @@
 
 This model is particularly useful for building high-performance, non-blocking network servers that handle many simultaneous connections efficiently, without using one thread per connection.
 
-In Linux, I/O multiplexing is implemented through several system calls:
-
-- `select` — legacy and limited in scalability
-- `poll` — more flexible but still inefficient for large numbers of FDs
-- ✅ **`epoll`** — modern, efficient, and scalable
-
 ## Epoll: Linux's I/O Multiplexing Mechanism
 
 **`epoll`** was introduced in Linux as a high-performance mechanism for I/O multiplexing. It allows a program to monitor thousands (or even millions) of file descriptors with minimal overhead, making it the preferred choice for scalable server applications.
