@@ -8,8 +8,49 @@ import (
 	"redis-repo/internal/core/command"
 	"redis-repo/internal/core/executor"
 	"redis-repo/internal/core/io_multiplexing"
+	"redis-repo/internal/core/resp"
+	"strings"
 	"syscall"
 )
+
+// parseCmd parses RESP data into a Command struct
+func parseCmd(data []byte) (*command.Command, error) {
+	value, err := resp.Decode(data)
+	if err != nil {
+		return nil, err
+	}
+
+	array := value.([]any)
+	tokens := make([]string, len(array))
+	for i := range tokens {
+		tokens[i] = array[i].(string)
+	}
+
+	res := &command.Command{
+		Cmd:  strings.ToUpper(tokens[0]),
+		Args: tokens[1:],
+	}
+	return res, nil
+}
+
+// readCommand reads a command from a file descriptor
+func readCommand(fd int) (*command.Command, error) {
+	buf := make([]byte, 512)
+	n, err := syscall.Read(fd, buf)
+	if err != nil {
+		return nil, err
+	}
+	if n == 0 {
+		return nil, io.EOF
+	}
+
+	cmd, err := parseCmd(buf[:n])
+	if err != nil {
+		return nil, err
+	}
+
+	return cmd, nil
+}
 
 // HandleNewConnection accepts a new client connection and adds it to the IO multiplexer monitoring
 func HandleNewConnection(serverFd int, ioMultiplexer *io_multiplexing.Epoll) {
@@ -32,7 +73,7 @@ func HandleNewConnection(serverFd int, ioMultiplexer *io_multiplexing.Epoll) {
 
 // HandleClientData reads commands from a client connection and sends responses
 func HandleClientData(clientFd int) {
-	cmd, err := command.ReadCommand(clientFd)
+	cmd, err := readCommand(clientFd)
 	if err != nil {
 		if err == io.EOF || err == syscall.ECONNRESET {
 			syscall.Close(clientFd)

@@ -8,11 +8,6 @@ import (
 	"time"
 )
 
-// Test helper functions
-func setupTestDict() *data_structure.Dict {
-	return data_structure.NewDict()
-}
-
 func resetGlobalDict() {
 	dictStore = data_structure.NewDict()
 }
@@ -21,13 +16,6 @@ func assertResponse(t *testing.T, got []byte, expected string) {
 	gotStr := string(got)
 	if gotStr != expected {
 		t.Errorf("Expected response %q, got %q", expected, gotStr)
-	}
-}
-
-func assertErrorResponse(t *testing.T, got []byte, expectedPrefix string) {
-	gotStr := string(got)
-	if !strings.HasPrefix(gotStr, expectedPrefix) {
-		t.Errorf("Expected error response starting with %q, got %q", expectedPrefix, gotStr)
 	}
 }
 
