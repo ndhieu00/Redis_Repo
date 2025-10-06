@@ -60,8 +60,13 @@ func (d *Dict) SetDictStore(key string, value any) {
  * Expired Dictionary store implementation
  */
 
-func (d *Dict) GetExpiredDictStore() map[string]uint64 {
-	return d.expiredDictStore
+// IterateExpiredKeys iterates over expired keys without exposing internal state
+func (d *Dict) IterateExpiredKeys(fn func(key string, expiryTime uint64) bool) {
+	for key, expiryTime := range d.expiredDictStore {
+		if !fn(key, expiryTime) {
+			break
+		}
+	}
 }
 
 func (d *Dict) GetExpiryTime(key string) (uint64, bool) {
