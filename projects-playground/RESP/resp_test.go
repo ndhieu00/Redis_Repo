@@ -2,6 +2,7 @@ package resp
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 )
 
@@ -324,14 +325,15 @@ func TestDecodeArray(t *testing.T) {
 
 func TestRoundTrip(t *testing.T) {
 	tests := []struct {
-		name  string
-		input any
+		name     string
+		input    any
+		expected any
 	}{
-		{"integer", int64(42)},
-		{"string", "hello world"},
-		{"error", errors.New("test error")},
-		{"array", []any{"hello", 42, errors.New("error")}},
-		{"empty array", []any{}},
+		{"integer", (42), int64(42)},
+		{"string", "hello world", "hello world"},
+		{"error", errors.New("test error"), "test error"},
+		{"array", []any{"hello", 42, errors.New("error")}, []any{"hello", int64(42), "error"}},
+		{"empty array", []any{}, []any{}},
 	}
 
 	for _, tt := range tests {
@@ -344,8 +346,8 @@ func TestRoundTrip(t *testing.T) {
 				return
 			}
 
-			if tt.name == "array" {
-				expectedArr := tt.input.([]any)
+			if tt.name == "array" || tt.name == "empty array" {
+				expectedArr := tt.expected.([]any)
 				decodedArr, ok := decoded.([]any)
 				if !ok {
 					t.Errorf("Expected []any, got %T", decoded)
@@ -355,9 +357,34 @@ func TestRoundTrip(t *testing.T) {
 					t.Errorf("Array length mismatch: expected %d, got %d", len(expectedArr), len(decodedArr))
 					return
 				}
+				for i, expected := range expectedArr {
+					// Check types first
+					expectedType := fmt.Sprintf("%T", expected)
+					decodedType := fmt.Sprintf("%T", decodedArr[i])
+					if expectedType != decodedType {
+						t.Errorf("Array element type mismatch at index %d: expected %s, got %s", i, expectedType, decodedType)
+						continue
+					}
+					// If types match, compare values
+					expectedStr := fmt.Sprintf("%v", expected)
+					decodedStr := fmt.Sprintf("%v", decodedArr[i])
+					if expectedStr != decodedStr {
+						t.Errorf("Array element value mismatch at index %d: expected %v, got %v", i, expectedStr, decodedStr)
+					}
+				}
 			} else {
-				if decoded != tt.input {
-					t.Errorf("Round trip failed: expected %v, got %v", tt.input, decoded)
+				// Check types first
+				expectedType := fmt.Sprintf("%T", tt.expected)
+				decodedType := fmt.Sprintf("%T", decoded)
+				if expectedType != decodedType {
+					t.Errorf("Type mismatch: expected %s, got %s", expectedType, decodedType)
+					return
+				}
+				// If types match, compare values
+				expectedStr := fmt.Sprintf("%v", tt.expected)
+				decodedStr := fmt.Sprintf("%v", decoded)
+				if expectedStr != decodedStr {
+					t.Errorf("Value mismatch: expected %v, got %v", expectedStr, decodedStr)
 				}
 			}
 		})
