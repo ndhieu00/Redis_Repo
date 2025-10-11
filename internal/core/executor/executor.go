@@ -10,15 +10,15 @@ func ExecuteAndRespond(cmd *command.Command, clientFd int) error {
 
 	switch cmd.Cmd {
 	case "PING":
-		res = executePing(cmd.Args)
+		res = cmdPING(cmd.Args)
 	case "GET":
-		res = executeGet(cmd.Args)
+		res = cmdGET(cmd.Args)
 	case "SET":
-		res = executeSet(cmd.Args)
+		res = cmdSET(cmd.Args)
 	case "TTL":
-		res = executeTTL(cmd.Args)
+		res = cmdTTL(cmd.Args)
 	case "DEL":
-		res = executeDel(cmd.Args)
+		res = cmdDEL(cmd.Args)
 
 	default:
 		res = []byte("-CMD NOT FOUND\r\n")

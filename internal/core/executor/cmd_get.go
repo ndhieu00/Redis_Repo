@@ -6,7 +6,7 @@ import (
 	"redis-repo/internal/core/resp"
 )
 
-func executeGet(args []string) []byte {
+func cmdGET(args []string) []byte {
 	if len(args) != 1 {
 		return []byte(fmt.Sprintf(constant.ErrWrongArgCount, "GET"))
 	}

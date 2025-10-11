@@ -12,7 +12,7 @@ import (
 )
 
 // Support SET key value [EX seconds|PX milliseconds|EXAT timestamp|PXAT milliseconds-timestamp]
-func executeSet(args []string) []byte {
+func cmdSET(args []string) []byte {
 	if len(args) != 2 && len(args) != 4 {
 		return []byte(fmt.Sprintf(constant.ErrWrongArgCount, "SET"))
 	}

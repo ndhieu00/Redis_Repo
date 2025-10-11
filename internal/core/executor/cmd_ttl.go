@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func executeTTL(args []string) []byte {
+func cmdTTL(args []string) []byte {
 	if len(args) != 1 {
 		return []byte(fmt.Sprintf(constant.ErrWrongArgCount, "TTL"))
 	}

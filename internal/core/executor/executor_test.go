@@ -45,7 +45,7 @@ func TestExecutePing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := executePing(tt.args)
+			result := cmdPING(tt.args)
 			assertResponse(t, result, tt.expected)
 		})
 	}
@@ -108,7 +108,7 @@ func TestExecuteGet(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			resetGlobalDict()
 			tt.setup()
-			result := executeGet(tt.args)
+			result := cmdGET(tt.args)
 			assertResponse(t, result, tt.expected)
 		})
 	}
@@ -183,7 +183,7 @@ func TestExecuteSet(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			resetGlobalDict()
-			result := executeSet(tt.args)
+			result := cmdSET(tt.args)
 			assertResponse(t, result, tt.expected)
 		})
 	}
@@ -255,7 +255,7 @@ func TestExecuteTTL(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			resetGlobalDict()
 			tt.setup()
-			result := executeTTL(tt.args)
+			result := cmdTTL(tt.args)
 
 			// For TTL with future expiry, just check it's a positive integer
 			if tt.name == "TTL for key with future expiry" {
@@ -327,7 +327,7 @@ func TestExecuteDel(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			resetGlobalDict()
 			tt.setup()
-			result := executeDel(tt.args)
+			result := cmdDEL(tt.args)
 			assertResponse(t, result, tt.expected)
 		})
 	}
@@ -339,30 +339,30 @@ func TestCommandIntegration(t *testing.T) {
 
 	t.Run("SET-GET-TTL-DEL workflow", func(t *testing.T) {
 		// SET a key with expiry
-		setResult := executeSet([]string{"testkey", "testvalue", "EX", "60"})
+		setResult := cmdSET([]string{"testkey", "testvalue", "EX", "60"})
 		assertResponse(t, setResult, constant.RespOk)
 
 		// GET the key
-		getResult := executeGet([]string{"testkey"})
+		getResult := cmdGET([]string{"testkey"})
 		assertResponse(t, getResult, "$9\r\ntestvalue\r\n")
 
 		// Check TTL
-		ttlResult := executeTTL([]string{"testkey"})
+		ttlResult := cmdTTL([]string{"testkey"})
 		ttlStr := string(ttlResult)
 		if !strings.HasPrefix(ttlStr, ":") || strings.Contains(ttlStr, "-") {
 			t.Errorf("Expected positive TTL, got %q", ttlStr)
 		}
 
 		// DELETE the key
-		delResult := executeDel([]string{"testkey"})
+		delResult := cmdDEL([]string{"testkey"})
 		assertResponse(t, delResult, ":1\r\n")
 
 		// GET should return nil after deletion
-		getResultAfterDel := executeGet([]string{"testkey"})
+		getResultAfterDel := cmdGET([]string{"testkey"})
 		assertResponse(t, getResultAfterDel, constant.RespNil)
 
 		// TTL should return -2 after deletion
-		ttlResultAfterDel := executeTTL([]string{"testkey"})
+		ttlResultAfterDel := cmdTTL([]string{"testkey"})
 		assertResponse(t, ttlResultAfterDel, constant.TtlKeyNotExist)
 	})
 
@@ -372,11 +372,11 @@ func TestCommandIntegration(t *testing.T) {
 		dict.Set("expired", "value", immediateExpiry)
 
 		// GET should return nil (key should be cleaned up)
-		getResult := executeGet([]string{"expired"})
+		getResult := cmdGET([]string{"expired"})
 		assertResponse(t, getResult, constant.RespNil)
 
 		// TTL should return -2 (key not found)
-		ttlResult := executeTTL([]string{"expired"})
+		ttlResult := cmdTTL([]string{"expired"})
 		assertResponse(t, ttlResult, constant.TtlKeyNotExist)
 	})
 }
