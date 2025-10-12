@@ -12,6 +12,10 @@ func resetGlobalDict() {
 	dict = data_structure.NewDict()
 }
 
+func resetGlobalSetStore() {
+	setStore = make(map[string]data_structure.Set)
+}
+
 func assertResponse(t *testing.T, got []byte, expected string) {
 	gotStr := string(got)
 	if gotStr != expected {
@@ -378,5 +382,337 @@ func TestCommandIntegration(t *testing.T) {
 		// TTL should return -2 (key not found)
 		ttlResult := cmdTTL([]string{"expired"})
 		assertResponse(t, ttlResult, constant.TtlKeyNotExist)
+	})
+}
+
+// Test SADD command
+func TestExecuteSadd(t *testing.T) {
+	resetGlobalSetStore()
+
+	tests := []struct {
+		name     string
+		args     []string
+		expected string
+	}{
+		{
+			name:     "SADD new set with single member",
+			args:     []string{"myset", "member1"},
+			expected: ":1\r\n",
+		},
+		{
+			name:     "SADD new set with multiple members",
+			args:     []string{"myset", "member1", "member2", "member3"},
+			expected: ":3\r\n",
+		},
+		{
+			name:     "SADD existing set with new members",
+			args:     []string{"myset", "member4", "member5"},
+			expected: ":2\r\n",
+		},
+		{
+			name:     "SADD existing set with duplicate members",
+			args:     []string{"myset", "member1", "member6"},
+			expected: ":1\r\n", // Only member6 is new
+		},
+		{
+			name:     "SADD with wrong number of arguments",
+			args:     []string{"myset"},
+			expected: "-ERR wrong number of arguments for 'SADD' command\r\n",
+		},
+		{
+			name:     "SADD with no arguments",
+			args:     []string{},
+			expected: "-ERR wrong number of arguments for 'SADD' command\r\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetGlobalSetStore()
+			// Pre-populate set for some tests
+			if tt.name == "SADD existing set with new members" || tt.name == "SADD existing set with duplicate members" {
+				setStore["myset"] = data_structure.NewSet([]string{"member1", "member2", "member3"})
+			}
+			result := cmdSADD(tt.args)
+			assertResponse(t, result, tt.expected)
+		})
+	}
+}
+
+// Test SMEMBERS command
+func TestExecuteSmembers(t *testing.T) {
+	resetGlobalSetStore()
+
+	tests := []struct {
+		name     string
+		setup    func()
+		args     []string
+		expected string
+	}{
+		{
+			name: "SMEMBERS existing set",
+			setup: func() {
+				setStore["myset"] = data_structure.NewSet([]string{"member1", "member2", "member3"})
+			},
+			args:     []string{"myset"},
+			expected: "*3\r\n", // Just check array length, order is not guaranteed
+		},
+		{
+			name: "SMEMBERS empty set",
+			setup: func() {
+				setStore["myset"] = data_structure.NewSet([]string{})
+			},
+			args:     []string{"myset"},
+			expected: "*0\r\n",
+		},
+		{
+			name: "SMEMBERS non-existing set",
+			setup: func() {
+				// No setup - empty setStore
+			},
+			args:     []string{"nonexistent"},
+			expected: "*0\r\n",
+		},
+		{
+			name: "SMEMBERS with wrong number of arguments",
+			setup: func() {
+				// No setup needed
+			},
+			args:     []string{},
+			expected: "-ERR wrong number of arguments for 'SMEMBERS' command\r\n",
+		},
+		{
+			name: "SMEMBERS with multiple arguments",
+			setup: func() {
+				// No setup needed
+			},
+			args:     []string{"myset", "extra"},
+			expected: "-ERR wrong number of arguments for 'SMEMBERS' command\r\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetGlobalSetStore()
+			tt.setup()
+			result := cmdSMEMBERS(tt.args)
+
+			// For existing set test, just check array length since order is not guaranteed
+			if tt.name == "SMEMBERS existing set" {
+				resultStr := string(result)
+				if !strings.HasPrefix(resultStr, "*3\r\n") {
+					t.Errorf("Expected array with 3 elements, got %q", resultStr)
+				}
+			} else {
+				assertResponse(t, result, tt.expected)
+			}
+		})
+	}
+}
+
+// Test SISMEMBER command
+func TestExecuteSismember(t *testing.T) {
+	resetGlobalSetStore()
+
+	tests := []struct {
+		name     string
+		setup    func()
+		args     []string
+		expected string
+	}{
+		{
+			name: "SISMEMBER existing member",
+			setup: func() {
+				setStore["myset"] = data_structure.NewSet([]string{"member1", "member2", "member3"})
+			},
+			args:     []string{"myset", "member1"},
+			expected: "*1\r\n:1\r\n",
+		},
+		{
+			name: "SISMEMBER non-existing member",
+			setup: func() {
+				setStore["myset"] = data_structure.NewSet([]string{"member1", "member2", "member3"})
+			},
+			args:     []string{"myset", "member4"},
+			expected: "*1\r\n:0\r\n",
+		},
+		{
+			name: "SISMEMBER non-existing set",
+			setup: func() {
+				// No setup - empty setStore
+			},
+			args:     []string{"nonexistent", "member1"},
+			expected: "*1\r\n:0\r\n",
+		},
+		{
+			name: "SISMEMBER multiple members - mixed results",
+			setup: func() {
+				setStore["myset"] = data_structure.NewSet([]string{"member1", "member2", "member3"})
+			},
+			args:     []string{"myset", "member1", "member4", "member2"},
+			expected: "*3\r\n:1\r\n:0\r\n:1\r\n",
+		},
+		{
+			name: "SISMEMBER with wrong number of arguments",
+			setup: func() {
+				// No setup needed
+			},
+			args:     []string{"myset"},
+			expected: "-ERR wrong number of arguments for 'SMISMEMBER' command\r\n",
+		},
+		{
+			name: "SISMEMBER with no arguments",
+			setup: func() {
+				// No setup needed
+			},
+			args:     []string{},
+			expected: "-ERR wrong number of arguments for 'SMISMEMBER' command\r\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetGlobalSetStore()
+			tt.setup()
+			result := cmdSMISMEMBER(tt.args)
+			assertResponse(t, result, tt.expected)
+		})
+	}
+}
+
+// Test SREM command
+func TestExecuteSrem(t *testing.T) {
+	resetGlobalSetStore()
+
+	tests := []struct {
+		name     string
+		setup    func()
+		args     []string
+		expected string
+	}{
+		{
+			name: "SREM existing member",
+			setup: func() {
+				setStore["myset"] = data_structure.NewSet([]string{"member1", "member2", "member3"})
+			},
+			args:     []string{"myset", "member1"},
+			expected: ":1\r\n",
+		},
+		{
+			name: "SREM non-existing member",
+			setup: func() {
+				setStore["myset"] = data_structure.NewSet([]string{"member1", "member2", "member3"})
+			},
+			args:     []string{"myset", "member4"},
+			expected: ":0\r\n",
+		},
+		{
+			name: "SREM non-existing set",
+			setup: func() {
+				// No setup - empty setStore
+			},
+			args:     []string{"nonexistent", "member1"},
+			expected: ":0\r\n",
+		},
+		{
+			name: "SREM multiple members - some exist",
+			setup: func() {
+				setStore["myset"] = data_structure.NewSet([]string{"member1", "member2", "member3"})
+			},
+			args:     []string{"myset", "member1", "member4", "member2"},
+			expected: ":2\r\n", // Only member1 and member2 were removed
+		},
+		{
+			name: "SREM multiple members - none exist",
+			setup: func() {
+				setStore["myset"] = data_structure.NewSet([]string{"member1", "member2", "member3"})
+			},
+			args:     []string{"myset", "member4", "member5"},
+			expected: ":0\r\n",
+		},
+		{
+			name: "SREM with wrong number of arguments",
+			setup: func() {
+				// No setup needed
+			},
+			args:     []string{"myset"},
+			expected: "-ERR wrong number of arguments for 'SREM' command\r\n",
+		},
+		{
+			name: "SREM with no arguments",
+			setup: func() {
+				// No setup needed
+			},
+			args:     []string{},
+			expected: "-ERR wrong number of arguments for 'SREM' command\r\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetGlobalSetStore()
+			tt.setup()
+			result := cmdSREM(tt.args)
+			assertResponse(t, result, tt.expected)
+		})
+	}
+}
+
+// Integration tests for set commands
+func TestSetCommandIntegration(t *testing.T) {
+	resetGlobalSetStore()
+
+	t.Run("SADD-SMEMBERS-SISMEMBER-SREM workflow", func(t *testing.T) {
+		// SADD members to a new set
+		saddResult := cmdSADD([]string{"myset", "member1", "member2", "member3"})
+		assertResponse(t, saddResult, ":3\r\n")
+
+		// SMEMBERS should return all members
+		smembersResult := cmdSMEMBERS([]string{"myset"})
+		smembersStr := string(smembersResult)
+		if !strings.HasPrefix(smembersStr, "*3\r\n") {
+			t.Errorf("Expected array with 3 elements, got %q", smembersStr)
+		}
+
+		// SISMEMBER should return 1 for existing members
+		sismemberResult := cmdSMISMEMBER([]string{"myset", "member1", "member4"})
+		assertResponse(t, sismemberResult, "*2\r\n:1\r\n:0\r\n")
+
+		// SADD more members (some duplicates)
+		saddMoreResult := cmdSADD([]string{"myset", "member3", "member4", "member5"})
+		assertResponse(t, saddMoreResult, ":2\r\n") // Only member4 and member5 are new
+
+		// SMEMBERS should now have 5 members
+		smembersAfterAddResult := cmdSMEMBERS([]string{"myset"})
+		// Note: Order is not guaranteed in sets, so we just check it's an array with 5 elements
+		smembersAfterAddStr := string(smembersAfterAddResult)
+		if !strings.HasPrefix(smembersAfterAddStr, "*5\r\n") {
+			t.Errorf("Expected array with 5 elements, got %q", smembersAfterAddStr)
+		}
+
+		// SREM some members
+		sremResult := cmdSREM([]string{"myset", "member1", "member6"})
+		assertResponse(t, sremResult, ":1\r\n") // Only member1 was removed
+
+		// Final SMEMBERS should have 4 members
+		finalSmembersResult := cmdSMEMBERS([]string{"myset"})
+		finalSmembersStr := string(finalSmembersResult)
+		if !strings.HasPrefix(finalSmembersStr, "*4\r\n") {
+			t.Errorf("Expected array with 4 elements, got %q", finalSmembersStr)
+		}
+	})
+
+	t.Run("Empty set operations", func(t *testing.T) {
+		// SMEMBERS on non-existing set
+		smembersResult := cmdSMEMBERS([]string{"empty"})
+		assertResponse(t, smembersResult, "*0\r\n")
+
+		// SISMEMBER on non-existing set
+		sismemberResult := cmdSMISMEMBER([]string{"empty", "member1"})
+		assertResponse(t, sismemberResult, "*1\r\n:0\r\n")
+
+		// SREM on non-existing set
+		sremResult := cmdSREM([]string{"empty", "member1"})
+		assertResponse(t, sremResult, ":0\r\n")
 	})
 }
