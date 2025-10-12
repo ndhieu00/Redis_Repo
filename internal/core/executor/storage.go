@@ -7,9 +7,11 @@ import (
 )
 
 var dict *data_structure.Dict
+var setStore map[string]data_structure.Set
 
 func init() {
 	dict = data_structure.NewDict()
+	setStore = make(map[string]data_structure.Set)
 }
 
 // Clean some expired keys, follows Redis's solution
