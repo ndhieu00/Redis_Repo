@@ -716,3 +716,237 @@ func TestSetCommandIntegration(t *testing.T) {
 		assertResponse(t, sremResult, ":0\r\n")
 	})
 }
+
+// Test SCARD command
+func TestExecuteScard(t *testing.T) {
+	resetGlobalSetStore()
+
+	tests := []struct {
+		name     string
+		setup    func()
+		args     []string
+		expected string
+	}{
+		{
+			name: "SCARD existing set with members",
+			setup: func() {
+				setStore["myset"] = data_structure.NewSet([]string{"member1", "member2", "member3"})
+			},
+			args:     []string{"myset"},
+			expected: ":3\r\n",
+		},
+		{
+			name: "SCARD empty set",
+			setup: func() {
+				setStore["myset"] = data_structure.NewSet([]string{})
+			},
+			args:     []string{"myset"},
+			expected: ":0\r\n",
+		},
+		{
+			name: "SCARD non-existing set",
+			setup: func() {
+				// No setup - empty setStore
+			},
+			args:     []string{"nonexistent"},
+			expected: ":0\r\n",
+		},
+		{
+			name: "SCARD with wrong number of arguments",
+			setup: func() {
+				// No setup needed
+			},
+			args:     []string{},
+			expected: "-ERR wrong number of arguments for 'SCARD' command\r\n",
+		},
+		{
+			name: "SCARD with multiple arguments",
+			setup: func() {
+				// No setup needed
+			},
+			args:     []string{"myset", "extra"},
+			expected: "-ERR wrong number of arguments for 'SCARD' command\r\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetGlobalSetStore()
+			tt.setup()
+			result := cmdSCARD(tt.args)
+			assertResponse(t, result, tt.expected)
+		})
+	}
+}
+
+// Test SINTER command
+func TestExecuteSinter(t *testing.T) {
+	resetGlobalSetStore()
+
+	tests := []struct {
+		name     string
+		setup    func()
+		args     []string
+		expected string
+	}{
+		{
+			name: "SINTER two sets with common members",
+			setup: func() {
+				setStore["set1"] = data_structure.NewSet([]string{"a", "b", "c"})
+				setStore["set2"] = data_structure.NewSet([]string{"b", "c", "d"})
+			},
+			args:     []string{"set1", "set2"},
+			expected: "*2\r\n", // Should have 2 common members (b, c)
+		},
+		{
+			name: "SINTER three sets with common members",
+			setup: func() {
+				setStore["set1"] = data_structure.NewSet([]string{"a", "b", "c", "d"})
+				setStore["set2"] = data_structure.NewSet([]string{"b", "c", "d", "e"})
+				setStore["set3"] = data_structure.NewSet([]string{"c", "d", "e", "f"})
+			},
+			args:     []string{"set1", "set2", "set3"},
+			expected: "*2\r\n", // Should have 2 common members (c, d)
+		},
+		{
+			name: "SINTER sets with no common members",
+			setup: func() {
+				setStore["set1"] = data_structure.NewSet([]string{"a", "b"})
+				setStore["set2"] = data_structure.NewSet([]string{"c", "d"})
+			},
+			args:     []string{"set1", "set2"},
+			expected: "*0\r\n",
+		},
+		{
+			name: "SINTER identical sets",
+			setup: func() {
+				setStore["set1"] = data_structure.NewSet([]string{"a", "b", "c"})
+				setStore["set2"] = data_structure.NewSet([]string{"a", "b", "c"})
+			},
+			args:     []string{"set1", "set2"},
+			expected: "*3\r\n", // Should have 3 common members
+		},
+		{
+			name: "SINTER with non-existing set",
+			setup: func() {
+				setStore["set1"] = data_structure.NewSet([]string{"a", "b", "c"})
+				// set2 doesn't exist
+			},
+			args:     []string{"set1", "nonexistent"},
+			expected: "*0\r\n",
+		},
+		{
+			name: "SINTER with empty set",
+			setup: func() {
+				setStore["set1"] = data_structure.NewSet([]string{"a", "b", "c"})
+				setStore["set2"] = data_structure.NewSet([]string{})
+			},
+			args:     []string{"set1", "set2"},
+			expected: "*0\r\n",
+		},
+		{
+			name: "SINTER single set",
+			setup: func() {
+				setStore["set1"] = data_structure.NewSet([]string{"a", "b", "c"})
+			},
+			args:     []string{"set1"},
+			expected: "*3\r\n", // Should return all members of the single set
+		},
+		{
+			name: "SINTER with no arguments",
+			setup: func() {
+				// No setup needed
+			},
+			args:     []string{},
+			expected: "-ERR wrong number of arguments for 'SINTER' command\r\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetGlobalSetStore()
+			tt.setup()
+			result := cmdSINTER(tt.args)
+
+			// For SINTER tests, we check array length since order is not guaranteed
+			if strings.HasPrefix(tt.expected, "*") {
+				resultStr := string(result)
+				if !strings.HasPrefix(resultStr, tt.expected) {
+					t.Errorf("Expected %s, got %q", tt.expected, resultStr)
+				}
+			} else {
+				assertResponse(t, result, tt.expected)
+			}
+		})
+	}
+}
+
+// Integration tests for SCARD and SINTER commands
+func TestScardSinterIntegration(t *testing.T) {
+	resetGlobalSetStore()
+
+	t.Run("SCARD-SINTER workflow", func(t *testing.T) {
+		// Create sets with some overlap
+		saddResult1 := cmdSADD([]string{"set1", "a", "b", "c", "d"})
+		assertResponse(t, saddResult1, ":4\r\n")
+
+		saddResult2 := cmdSADD([]string{"set2", "c", "d", "e", "f"})
+		assertResponse(t, saddResult2, ":4\r\n")
+
+		saddResult3 := cmdSADD([]string{"set3", "d", "e", "f", "g"})
+		assertResponse(t, saddResult3, ":4\r\n")
+
+		// Check cardinality of each set
+		scardResult1 := cmdSCARD([]string{"set1"})
+		assertResponse(t, scardResult1, ":4\r\n")
+
+		scardResult2 := cmdSCARD([]string{"set2"})
+		assertResponse(t, scardResult2, ":4\r\n")
+
+		scardResult3 := cmdSCARD([]string{"set3"})
+		assertResponse(t, scardResult3, ":4\r\n")
+
+		// Find intersection of set1 and set2
+		sinterResult12 := cmdSINTER([]string{"set1", "set2"})
+		sinter12Str := string(sinterResult12)
+		if !strings.HasPrefix(sinter12Str, "*2\r\n") {
+			t.Errorf("Expected intersection of set1 and set2 to have 2 elements, got %q", sinter12Str)
+		}
+
+		// Find intersection of all three sets
+		sinterResult123 := cmdSINTER([]string{"set1", "set2", "set3"})
+		sinter123Str := string(sinterResult123)
+		if !strings.HasPrefix(sinter123Str, "*1\r\n") {
+			t.Errorf("Expected intersection of all three sets to have 1 element, got %q", sinter123Str)
+		}
+
+		// Remove some elements and check cardinality again
+		sremResult := cmdSREM([]string{"set1", "a", "b"})
+		assertResponse(t, sremResult, ":2\r\n")
+
+		scardAfterRemoval := cmdSCARD([]string{"set1"})
+		assertResponse(t, scardAfterRemoval, ":2\r\n")
+
+		// Check intersection after removal
+		sinterAfterRemoval := cmdSINTER([]string{"set1", "set2"})
+		sinterAfterStr := string(sinterAfterRemoval)
+		if !strings.HasPrefix(sinterAfterStr, "*2\r\n") {
+			t.Errorf("Expected intersection after removal to have 2 elements, got %q", sinterAfterStr)
+		}
+	})
+
+	t.Run("Edge cases", func(t *testing.T) {
+		// SCARD on non-existing set
+		scardResult := cmdSCARD([]string{"nonexistent"})
+		assertResponse(t, scardResult, ":0\r\n")
+
+		// SINTER with non-existing sets
+		sinterResult := cmdSINTER([]string{"nonexistent1", "nonexistent2"})
+		assertResponse(t, sinterResult, "*0\r\n")
+
+		// SINTER with one existing and one non-existing set
+		cmdSADD([]string{"existing", "a", "b"})
+		sinterMixedResult := cmdSINTER([]string{"existing", "nonexistent"})
+		assertResponse(t, sinterMixedResult, "*0\r\n")
+	})
+}

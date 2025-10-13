@@ -27,6 +27,10 @@ func ExecuteAndRespond(cmd *command.Command, clientFd int) error {
 		res = cmdSMISMEMBER(cmd.Args)
 	case "SMEMBERS":
 		res = cmdSMEMBERS(cmd.Args)
+	case "SCARD":
+		res = cmdSCARD(cmd.Args)
+	case "SINTER":
+		res = cmdSINTER(cmd.Args)
 	default:
 		res = []byte("-CMD NOT FOUND\r\n")
 	}
