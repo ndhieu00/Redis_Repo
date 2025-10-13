@@ -510,7 +510,7 @@ func TestExecuteSmembers(t *testing.T) {
 	}
 }
 
-// Test SISMEMBER command
+// Test SMISMEMBER command
 func TestExecuteSismember(t *testing.T) {
 	resetGlobalSetStore()
 
@@ -521,7 +521,7 @@ func TestExecuteSismember(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "SISMEMBER existing member",
+			name: "SMISMEMBER existing member",
 			setup: func() {
 				setStore["myset"] = data_structure.NewSet([]string{"member1", "member2", "member3"})
 			},
@@ -529,7 +529,7 @@ func TestExecuteSismember(t *testing.T) {
 			expected: "*1\r\n:1\r\n",
 		},
 		{
-			name: "SISMEMBER non-existing member",
+			name: "SMISMEMBER non-existing member",
 			setup: func() {
 				setStore["myset"] = data_structure.NewSet([]string{"member1", "member2", "member3"})
 			},
@@ -537,7 +537,7 @@ func TestExecuteSismember(t *testing.T) {
 			expected: "*1\r\n:0\r\n",
 		},
 		{
-			name: "SISMEMBER non-existing set",
+			name: "SMISMEMBER non-existing set",
 			setup: func() {
 				// No setup - empty setStore
 			},
@@ -545,7 +545,7 @@ func TestExecuteSismember(t *testing.T) {
 			expected: "*1\r\n:0\r\n",
 		},
 		{
-			name: "SISMEMBER multiple members - mixed results",
+			name: "SMISMEMBER multiple members - mixed results",
 			setup: func() {
 				setStore["myset"] = data_structure.NewSet([]string{"member1", "member2", "member3"})
 			},
@@ -553,7 +553,7 @@ func TestExecuteSismember(t *testing.T) {
 			expected: "*3\r\n:1\r\n:0\r\n:1\r\n",
 		},
 		{
-			name: "SISMEMBER with wrong number of arguments",
+			name: "SMISMEMBER with wrong number of arguments",
 			setup: func() {
 				// No setup needed
 			},
@@ -561,7 +561,7 @@ func TestExecuteSismember(t *testing.T) {
 			expected: "-ERR wrong number of arguments for 'SMISMEMBER' command\r\n",
 		},
 		{
-			name: "SISMEMBER with no arguments",
+			name: "SMISMEMBER with no arguments",
 			setup: func() {
 				// No setup needed
 			},
@@ -662,7 +662,7 @@ func TestExecuteSrem(t *testing.T) {
 func TestSetCommandIntegration(t *testing.T) {
 	resetGlobalSetStore()
 
-	t.Run("SADD-SMEMBERS-SISMEMBER-SREM workflow", func(t *testing.T) {
+	t.Run("SADD-SMEMBERS-SMISMEMBER-SREM workflow", func(t *testing.T) {
 		// SADD members to a new set
 		saddResult := cmdSADD([]string{"myset", "member1", "member2", "member3"})
 		assertResponse(t, saddResult, ":3\r\n")
@@ -674,7 +674,7 @@ func TestSetCommandIntegration(t *testing.T) {
 			t.Errorf("Expected array with 3 elements, got %q", smembersStr)
 		}
 
-		// SISMEMBER should return 1 for existing members
+		// SMISMEMBER should return 1 for existing members
 		sismemberResult := cmdSMISMEMBER([]string{"myset", "member1", "member4"})
 		assertResponse(t, sismemberResult, "*2\r\n:1\r\n:0\r\n")
 
@@ -707,7 +707,7 @@ func TestSetCommandIntegration(t *testing.T) {
 		smembersResult := cmdSMEMBERS([]string{"empty"})
 		assertResponse(t, smembersResult, "*0\r\n")
 
-		// SISMEMBER on non-existing set
+		// SMISMEMBER on non-existing set
 		sismemberResult := cmdSMISMEMBER([]string{"empty", "member1"})
 		assertResponse(t, sismemberResult, "*1\r\n:0\r\n")
 
